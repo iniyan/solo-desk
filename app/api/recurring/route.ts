@@ -1,29 +1,23 @@
 import { NextResponse } from 'next/server';
-import { readFile, writeFile } from 'fs/promises';
-import { existsSync } from 'fs';
-import { configFilePath } from '@/lib/data-path';
+import { kv } from '@/lib/kv';
 import { RecurringTaskDef } from '@/lib/types';
 import { v4 as uuid } from 'uuid';
 
-async function readConfig() {
-  const cfgPath = configFilePath();
-  if (!existsSync(cfgPath)) return { recurringTasks: [], theme: 'light' };
-  const content = await readFile(cfgPath, 'utf-8');
-  return JSON.parse(content);
-}
+const CONFIG_KEY = 'config:recurring';
 
-async function saveConfig(config: Record<string, unknown>) {
-  await writeFile(configFilePath(), JSON.stringify(config, null, 2), 'utf-8');
+async function getRecurringTasks(): Promise<RecurringTaskDef[]> {
+  const defs = await kv.get<RecurringTaskDef[]>(CONFIG_KEY);
+  return defs || [];
 }
 
 export async function GET() {
-  const config = await readConfig();
-  return NextResponse.json(config.recurringTasks || []);
+  const tasks = await getRecurringTasks();
+  return NextResponse.json(tasks);
 }
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const config = await readConfig();
+  const tasks = await getRecurringTasks();
 
   const def: RecurringTaskDef = {
     id: uuid(),
@@ -36,25 +30,22 @@ export async function POST(request: Request) {
     active: body.active !== false,
   };
 
-  config.recurringTasks = [...(config.recurringTasks || []), def];
-  await saveConfig(config);
+  tasks.push(def);
+  await kv.set(CONFIG_KEY, tasks);
 
   return NextResponse.json(def, { status: 201 });
 }
 
 export async function PUT(request: Request) {
   const body = await request.json();
-  const config = await readConfig();
-
   if (!body.id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-  const tasks = config.recurringTasks || [];
-  const idx = tasks.findIndex((t: RecurringTaskDef) => t.id === body.id);
+  const tasks = await getRecurringTasks();
+  const idx = tasks.findIndex(t => t.id === body.id);
   if (idx === -1) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   tasks[idx] = { ...tasks[idx], ...body };
-  config.recurringTasks = tasks;
-  await saveConfig(config);
+  await kv.set(CONFIG_KEY, tasks);
 
   return NextResponse.json(tasks[idx]);
 }
@@ -64,9 +55,9 @@ export async function DELETE(request: Request) {
   const id = searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Missing id' }, { status: 400 });
 
-  const config = await readConfig();
-  config.recurringTasks = (config.recurringTasks || []).filter((t: RecurringTaskDef) => t.id !== id);
-  await saveConfig(config);
+  const tasks = await getRecurringTasks();
+  const updated = tasks.filter(t => t.id !== id);
+  await kv.set(CONFIG_KEY, updated);
 
   return NextResponse.json({ success: true });
 }

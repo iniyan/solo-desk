@@ -1,48 +1,30 @@
-import { readFile, writeFile, readdir, rename, unlink } from 'fs/promises';
-import { existsSync } from 'fs';
-import matter from 'gray-matter';
+import { kv } from '../kv';
 import { Organization } from '../types';
-import { orgFilePath, orgDirPath } from '../data-path';
+
+const ORG_PREFIX = 'org:';
+const ORG_INDEX_KEY = 'org:__index';
 
 export async function parseOrgFile(slug: string): Promise<Organization | null> {
-  const filePath = orgFilePath(slug);
-  if (!existsSync(filePath)) return null;
-
-  const content = await readFile(filePath, 'utf-8');
-  const { data, content: body } = matter(content);
-
-  return {
-    slug: data.slug || slug,
-    name: data.name || slug,
-    color: data.color || '#3B82F6',
-    notes: body.replace(/^## Notes\n?/, '').trim(),
-  };
+  const org = await kv.get<Organization>(`${ORG_PREFIX}${slug}`);
+  return org || null;
 }
 
 export async function writeOrgFile(org: Organization): Promise<void> {
-  const filePath = orgFilePath(org.slug);
-  const content = matter.stringify(`\n## Notes\n${org.notes}\n`, {
-    name: org.name,
-    slug: org.slug,
-    color: org.color,
-  });
+  await kv.set(`${ORG_PREFIX}${org.slug}`, org);
 
-  const tmpPath = filePath + '.tmp';
-  await writeFile(tmpPath, content, 'utf-8');
-  await rename(tmpPath, filePath);
+  const index = (await kv.get<string[]>(ORG_INDEX_KEY)) || [];
+  if (!index.includes(org.slug)) {
+    index.push(org.slug);
+    await kv.set(ORG_INDEX_KEY, index);
+  }
 }
 
 export async function listOrganizations(): Promise<Organization[]> {
-  const dir = orgDirPath();
-  if (!existsSync(dir)) return [];
-
-  const files = await readdir(dir);
+  const index = (await kv.get<string[]>(ORG_INDEX_KEY)) || [];
   const orgs: Organization[] = [];
 
-  for (const file of files) {
-    if (!file.endsWith('.md')) continue;
-    const slug = file.replace('.md', '');
-    const org = await parseOrgFile(slug);
+  for (const slug of index) {
+    const org = await kv.get<Organization>(`${ORG_PREFIX}${slug}`);
     if (org) orgs.push(org);
   }
 
@@ -50,6 +32,9 @@ export async function listOrganizations(): Promise<Organization[]> {
 }
 
 export async function deleteOrgFile(slug: string): Promise<void> {
-  const filePath = orgFilePath(slug);
-  if (existsSync(filePath)) await unlink(filePath);
+  await kv.del(`${ORG_PREFIX}${slug}`);
+
+  const index = (await kv.get<string[]>(ORG_INDEX_KEY)) || [];
+  const updated = index.filter(s => s !== slug);
+  await kv.set(ORG_INDEX_KEY, updated);
 }

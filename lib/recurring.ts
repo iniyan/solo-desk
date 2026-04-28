@@ -1,17 +1,13 @@
-import { readFile } from 'fs/promises';
-import { existsSync } from 'fs';
+import { kv } from './kv';
 import { RecurringTaskDef, Task } from './types';
-import { configFilePath } from './data-path';
 import { v4 as uuid } from 'uuid';
 import { getDay } from 'date-fns';
 
-export async function getRecurringDefs(): Promise<RecurringTaskDef[]> {
-  const cfgPath = configFilePath();
-  if (!existsSync(cfgPath)) return [];
+const CONFIG_KEY = 'config:recurring';
 
-  const content = await readFile(cfgPath, 'utf-8');
-  const config = JSON.parse(content);
-  return config.recurringTasks || [];
+export async function getRecurringDefs(): Promise<RecurringTaskDef[]> {
+  const defs = await kv.get<RecurringTaskDef[]>(CONFIG_KEY);
+  return defs || [];
 }
 
 export function shouldRunToday(def: RecurringTaskDef, dateStr: string): boolean {

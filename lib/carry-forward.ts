@@ -1,5 +1,3 @@
-import { readdir } from 'fs/promises';
-import { existsSync } from 'fs';
 import { parseDailyFile } from './markdown/parser';
 import { Task } from './types';
 import { format, subDays } from 'date-fns';
