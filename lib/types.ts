@@ -1,3 +1,10 @@
+export interface User {
+  email: string;
+  passwordHash: string;
+  name: string;
+  createdAt: string;
+}
+
 export type Priority = 'low' | 'medium' | 'high' | 'urgent';
 export type TaskStatus = 'not-started' | 'started' | 'in-progress' | 'completed' | 'carry-forward';
 export type RevenueTag = 'billable' | 'non-billable' | 'growth' | 'admin';

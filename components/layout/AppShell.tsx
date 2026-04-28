@@ -1,10 +1,13 @@
 'use client';
 
 import { useState } from 'react';
+import { usePathname } from 'next/navigation';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import QuickCaptureDialog from '../inbox/QuickCaptureDialog';
 import { DateProvider, useDate } from '@/hooks/useDate';
+
+const AUTH_ROUTES = ['/login', '/register'];
 
 function AppShellInner({ children }: { children: React.ReactNode }) {
   const { date, goNext, goPrev, goToday } = useDate();
@@ -34,6 +37,12 @@ function AppShellInner({ children }: { children: React.ReactNode }) {
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+
+  if (AUTH_ROUTES.includes(pathname)) {
+    return <>{children}</>;
+  }
+
   return (
     <DateProvider>
       <AppShellInner>{children}</AppShellInner>

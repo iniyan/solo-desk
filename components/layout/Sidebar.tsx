@@ -12,7 +12,7 @@ import {
   FileText,
   BarChart3,
   Settings,
-  Repeat,
+  LogOut,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -88,6 +88,16 @@ export default function Sidebar() {
             </Link>
           );
         })}
+        <button
+          onClick={async () => {
+            await fetch('/api/auth/logout', { method: 'POST' });
+            window.location.href = '/login';
+          }}
+          className="flex items-center gap-3 px-3 py-2 rounded-lg text-[13px] font-medium transition-colors text-text-secondary hover:bg-sidebar-hover hover:text-text-primary w-full"
+        >
+          <LogOut size={18} strokeWidth={1.8} />
+          Logout
+        </button>
       </div>
     </aside>
   );
